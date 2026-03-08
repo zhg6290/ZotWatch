@@ -10,6 +10,12 @@ from .models import RankedWork
 
 logger = logging.getLogger(__name__)
 
+_DC_NS = "http://purl.org/dc/elements/1.1/"
+_PRISM_NS = "http://prismstandard.org/namespaces/basic/2.0/"
+
+ET.register_namespace("dc", _DC_NS)
+ET.register_namespace("prism", _PRISM_NS)
+
 
 def write_rss(
     works: Iterable[RankedWork],
@@ -34,11 +40,16 @@ def write_rss(
             ET.SubElement(item, "link").text = work.url
         ET.SubElement(item, "guid").text = work.identifier
         ET.SubElement(item, "pubDate").text = _format_rfc822(work.published)
+        for author in work.authors:
+            ET.SubElement(item, f"{{{_DC_NS}}}creator").text = author
         if work.venue:
             ET.SubElement(item, "category").text = work.venue
+            ET.SubElement(item, f"{{{_PRISM_NS}}}publicationName").text = work.venue
         description_lines = []
         if work.abstract:
             description_lines.append(work.abstract)
+        if work.authors:
+            description_lines.append(f"Authors: {', '.join(work.authors)}")
         published_text = work.published.isoformat() if work.published else "Unknown"
         description_lines.append(f"Published: {published_text}")
         description_lines.append(f"Venue: {work.venue or 'Unknown'}")
