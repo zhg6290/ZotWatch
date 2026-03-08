@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - codex/dev
   workflow_dispatch:
 
 jobs:
@@ -26,6 +27,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
       - name: Ensure data directories
         run: |
           mkdir -p data reports
