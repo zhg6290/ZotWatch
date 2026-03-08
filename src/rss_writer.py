@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
 from .models import RankedWork
@@ -17,6 +18,14 @@ ET.register_namespace("dc", _DC_NS)
 ET.register_namespace("prism", _PRISM_NS)
 
 
+def _is_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+        return bool(parsed.scheme in ("http", "https") and parsed.netloc)
+    except Exception:
+        return False
+
+
 def write_rss(
     works: Iterable[RankedWork],
     output_path: Path | str,
@@ -26,7 +35,7 @@ def write_rss(
     description: str = "AI assisted literature watch",
 ) -> Path:
     works_list = list(works)
-    rss = ET.Element("rss", version="2.0")
+    rss = ET.Element("rss", {"version": "2.0"})
     channel = ET.SubElement(rss, "channel")
     ET.SubElement(channel, "title").text = title
     ET.SubElement(channel, "link").text = link
@@ -38,13 +47,18 @@ def write_rss(
         ET.SubElement(item, "title").text = work.title
         if work.url:
             ET.SubElement(item, "link").text = work.url
-        ET.SubElement(item, "guid").text = work.identifier
+        guid = ET.SubElement(item, "guid")
+        guid.text = work.identifier
+        if not _is_url(work.identifier):
+            guid.set("isPermaLink", "false")
         ET.SubElement(item, "pubDate").text = _format_rfc822(work.published)
         for author in work.authors:
             ET.SubElement(item, f"{{{_DC_NS}}}creator").text = author
         if work.venue:
             ET.SubElement(item, "category").text = work.venue
             ET.SubElement(item, f"{{{_PRISM_NS}}}publicationName").text = work.venue
+        if work.doi:
+            ET.SubElement(item, f"{{{_PRISM_NS}}}doi").text = work.doi
         description_lines = []
         if work.abstract:
             description_lines.append(work.abstract)
